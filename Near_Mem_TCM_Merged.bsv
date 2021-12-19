@@ -49,6 +49,7 @@ export mkNear_Mem_TCM;
 
 typedef TMul #(32, 1024) Words_per_BRAM;
 
+`define BRAM_LOAD 1
 // ================================================================
 // TCM interface
 
@@ -438,7 +439,7 @@ module mkIDTCM_AXI #(Bit #(2) i_verbosity, Bit #(2) d_verbosity)
    Integer addr_sz = log2 (words_per_bram);
 
    Vector #(2, BRAM_DUAL_PORT_BE #(Bit #(TLog #(Words_per_BRAM)), Bit #(32), 4)) v_brams = newVector;
-   for (Integer i = 0; i < 4; i = i+1) begin
+   for (Integer i = 0; i < 2; i = i+1) begin
 `ifdef BRAM_LOAD
       v_brams[i] <- mkBRAMCore2BELoad (words_per_bram, False, "Mem-TCM-" + integerToString(i) + ".hex", False);
 `else
@@ -568,13 +569,15 @@ module mkMergeBRAMs #( Vector #(n_data_, BRAM_PORT_BE #(Bit #(addr_), Bit #(data
                               , Add #(b__, tags_, total_data_));
    Reg #(Bool) drg_req <- mkDReg (False);
    rule rl_debug (drg_req);
-      $display ("%m mkMergeBRAMs -- read data:");
-      for (Integer i = 0; i < valueOf (n_tags_); i = i+1) begin
-         $display ("    tag_ports[", i, "].read: ", fshow (tag_ports[i].read));
-      end
-      for (Integer i = 0; i < valueOf (n_data_); i = i+1) begin
-         $display ("    data_ports[", i, "].read: ", fshow (data_ports[i].read));
-      end
+       /*
+          $display ("%m mkMergeBRAMs -- read data:");
+          for (Integer i = 0; i < valueOf (n_tags_); i = i+1) begin
+             $display ("    tag_ports[", i, "].read: ", fshow (tag_ports[i].read));
+          end
+          for (Integer i = 0; i < valueOf (n_data_); i = i+1) begin
+             $display ("    data_ports[", i, "].read: ", fshow (data_ports[i].read));
+          end
+        */
    endrule
    method Action put (Bit #(total_be_) writeen, Bit #(addr_) addr, Bit #(total_data_) data);
       if (writeen == 0) begin
@@ -1258,7 +1261,7 @@ module mkDTCM_AXI_from_BRAM #( BRAM_PORT_BE #(Bit #(b_addr_), Bit #(b_data_), b_
    (* conflict_free = "rl_register_from_cpu, rl_check_commit_from_cpu" *)
    (* execution_order = "rl_register_read, rl_check_commit_from_cpu" *)
    rule rl_check_commit_from_cpu (drg_pending);
-      $display ("%m: rl_check_commit_from_cpu");
+      //$display ("%m: rl_check_commit_from_cpu");
       Bit #(b_addr_) local_addr = fv_cpu_addr_to_local_addr (rg_req.va, valueOf (b_data_only_));
       if ((rg_req.op == CACHE_ST || rg_is_AMO_SC) && dw_commit) begin
          //let write_tuple = fv_mem_req_to_port_req (rg_req);
@@ -1537,12 +1540,16 @@ module mkDTCM_AXI_from_BRAM #( BRAM_PORT_BE #(Bit #(b_addr_), Bit #(b_data_), b_
                                  };
 
          dw_req_start <= True;
-         $display ("dmem request: ", fshow (addr));
+         if (verbosity > 1) begin
+             $display ("dmem request: ", fshow (addr));
+         end
       endmethod
 
       method Action commit;
          dw_commit <= True;
-         $display ("dmem commit");
+         if (verbosity > 1) begin
+             $display ("dmem commit");
+         end
       endmethod
 
       // CPU side: DMem response

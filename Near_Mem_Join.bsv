@@ -38,7 +38,7 @@ module mkNear_Mem_Join (Near_Mem_IFC);
 
    FIFOF #(DMem_Req) f_dmem_req <- mkBypassFIFOF;
    Wire #(Bool) w_dmem_req_active <- mkDWire (False);
-   Reg #(Mem_Dest) rg_dmem_dest <- mkRegU;
+   Reg #(Mem_Dest) rg_dmem_dest <- mkReg(TCM);
 
    Reg #(Mem_Dest) rg_tohost_src <- mkReg (TCM);
 
@@ -157,7 +157,9 @@ module mkNear_Mem_Join (Near_Mem_IFC);
 `endif
                                   });
          w_imem_req_active <= True;
-         $display ("joint mem request");
+         if (rg_verbosity > 1) begin
+             $display ("joint mem request");
+         end
       endmethod
 
       method Action commit;
