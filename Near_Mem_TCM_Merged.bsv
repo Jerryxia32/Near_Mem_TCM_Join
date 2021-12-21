@@ -1137,8 +1137,13 @@ module mkDTCM_AXI_from_BRAM #( BRAM_PORT_BE #(Bit #(b_addr_), Bit #(b_data_), b_
       rg_req <= dw_req;
       rg_started <= True;
       let pending = False;
+`ifdef ISA_A
       let is_AMO_LR = (dw_req.op == CACHE_AMO) && (dw_req.amo_funct5 == f5_AMO_LR);
       let is_AMO_SC = (dw_req.op == CACHE_AMO) && (dw_req.amo_funct5 == f5_AMO_SC);
+`else
+      let is_AMO_LR = False;
+      let is_AMO_SC = False;
+`endif
       Bit #(b_addr_) local_addr = fv_cpu_addr_to_local_addr (dw_req.va, valueOf (b_data_only_));
       if (! fn_is_aligned (dw_req.width_code, dw_req.va)) begin
          rg_exc <= True;
@@ -1150,7 +1155,11 @@ module mkDTCM_AXI_from_BRAM #( BRAM_PORT_BE #(Bit #(b_addr_), Bit #(b_data_), b_
          end
       end else begin
          rg_exc <= False;
-         if (dw_req.op == CACHE_LD || is_AMO_LR || (dw_req.op == CACHE_AMO && !is_AMO_SC)) begin
+         if (dw_req.op == CACHE_LD || is_AMO_LR || (
+`ifdef ISA_A
+              dw_req.op == CACHE_AMO &&
+`endif
+              !is_AMO_SC)) begin
 `ifdef ISA_A
             if (is_AMO_LR) begin
                rg_lrsc_valid <= True;
@@ -1457,7 +1466,11 @@ module mkDTCM_AXI_from_BRAM #( BRAM_PORT_BE #(Bit #(b_addr_), Bit #(b_data_), b_
    rule rl_handle_pending_store (dw_store_pending
                                  && crg_store_accepted[1]
                                  && (!dw_req_start || dw_req.op == CACHE_ST)
-                                 && !(drg_pending && rg_req.op == CACHE_AMO && !rg_is_AMO_LR && !rg_is_AMO_SC));
+                                 && !(drg_pending
+`ifdef ISA_A
+                                      && rg_req.op == CACHE_AMO
+`endif
+                                      && !rg_is_AMO_LR && !rg_is_AMO_SC));
                                  // do the actual request
       if (verbosity > 0) begin
          $display ("%m: rl_handle_pending_store");
